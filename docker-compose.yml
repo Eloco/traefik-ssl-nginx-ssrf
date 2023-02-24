@@ -27,10 +27,13 @@ services:
     image: "nginx:latest"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.my-app.rule=Host(`127.0.0.1`) && PathPrefix(`/`)"
+      # - "traefik.http.routers.my-app.rule=Host(`127.0.0.1`) && PathPrefix(`/`)"
+      - "traefik.http.routers.my-app.rule=Host(`127.0.0.1`)"
       - "traefik.http.routers.my-app.entrypoints=websecure"
       - "traefik.http.routers.my-app.tls=true"
       - "traefik.http.routers.my-app.tls.certresolver=le"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     networks:
       - traefik_network
 
