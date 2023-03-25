@@ -1,0 +1,125 @@
+# user  nginx;
+# worker_processes  auto;
+
+# error_log  /var/log/nginx/error.log warn;
+# pid        /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile        on;
+    tcp_nopush      on;
+    tcp_nodelay     on;
+
+    keepalive_timeout  65;
+
+
+
+
+    server {
+        listen       80;
+        server_name  127.0.0.1;
+
+
+        location /index.html {
+            resolver 119.29.29.29 ipv6=off;
+            return 200 "hello world";
+        }
+        location /wechat {
+            resolver 119.29.29.29 ipv6=off;
+            # rewrite ^/wechat(.*)$ $1 break;
+            proxy_pass http://192.168.2.190:31002/;
+        }
+        location /playwright {
+            resolver 119.29.29.29 ipv6=off;
+            rewrite ^/playwright/(.+)$ /$1 break;
+            rewrite ^/playwright / break;
+            proxy_pass http://192.168.2.190:31003;
+        }
+        location /transfer {
+            resolver 119.29.29.29 ipv6=off;
+            rewrite ^/transfer/(.+)$ /$1 break;
+            rewrite ^/transfer / break;
+            add_header Set-Cookie "session=transfer; Path=/";
+            proxy_pass http://192.168.2.190:31000/;
+            sub_filter_types *;
+            sub_filter_once off;
+            sub_filter 'http://192.168.2.190:31000/' '$scheme://$http_host/transfer/';
+            sub_filter '192.168.2.190:31000' '$http_host/transfer';
+        }
+        location /hastebin {
+            resolver 119.29.29.29 ipv6=off;
+            rewrite ^/hastebin/(.+)$ /$1 break;
+            rewrite ^/hastebin / break;
+            add_header Set-Cookie "session=hastebin; Path=/";
+            proxy_pass http://192.168.2.190:31001/;
+            sub_filter_types *;
+            sub_filter_once off;
+            sub_filter 'http://192.168.2.190:31001/' '$scheme://$http_host/hastebin/';
+            sub_filter '192.168.2.190:31001' '$http_host/hastebin';
+        }
+        location /kkfileview {
+            resolver 119.29.29.29 ipv6=off;
+            rewrite ^/kkfileview/(.+)$ /$1 break;
+            rewrite ^/kkfileview / break;
+            add_header Set-Cookie "session=kkfileview; Path=/";
+            proxy_pass http://192.168.2.190:31004;
+            # sub_filter_types *;
+            # sub_filter_once off;
+            # sub_filter 'http://192.168.2.190:31004/' '$scheme://$http_host/kkfileview/';
+            # sub_filter '192.168.2.190:31004' '$http_host/kkfileview';
+        }
+        location / {
+            # 先定义一个空的变量
+            set $url_scheme_raw '';
+            set $url_scheme_filter '';
+            set $url_raw '';
+            set $url_filter '';
+
+            set $path_keep 1;
+
+            if ($cookie_session = "transfer") {
+                set $path_keep 0;
+                proxy_pass http://192.168.2.190:31000;
+                set $url_raw '192.168.2.190:31000';
+                set $url_filter '$http_host/transfer';
+                set $url_scheme_raw 'http://192.168.2.190:31000/';
+                set $url_scheme_filter '$scheme://$http_host/transfer/';
+            }
+            if ($cookie_session = "hastebin") {
+                set $path_keep 0;
+                # return 302 $scheme://$http_host/hastebin$request_uri;
+                proxy_pass http://192.168.2.190:31001;
+                set $url_raw '192.168.2.190:31001';
+                set $url_filter '$http_host/hastebin';
+                set $url_scheme_raw 'http://192.168.2.190:31001/';
+                set $url_scheme_filter '$scheme://$http_host/hastebin/';
+            }
+            if ($cookie_session = "kkfileview") {
+                set $path_keep 0;
+                # return 302 $scheme://$http_host/hastebin$request_uri;
+                proxy_pass http://192.168.2.190:31004;
+                set $url_raw '192.168.2.190:31004';
+                set $url_filter '$http_host/kkfileview';
+                set $url_scheme_raw 'http://192.168.2.190:31004/';
+                set $url_scheme_filter '$scheme://$http_host/kkfileview/';
+            }
+
+            sub_filter_types *;
+            sub_filter_once off;
+            sub_filter '${url_scheme_raw}' '${url_scheme_filter}';
+            sub_filter '${url_raw}' '${url_filter}';
+        }
+    }
+}
